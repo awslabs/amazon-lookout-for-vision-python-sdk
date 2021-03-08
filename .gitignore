@@ -1,0 +1,13 @@
+.env
+build/
+dist/
+lookoutvision.egg-info/
+.egg*
+venv/
+*__pycache__*
+__pycache__/
+lookoutvision/__pycache__/
+tests/__pycache__/
+.DS_Store
+.vscode/
+pyproject.toml
