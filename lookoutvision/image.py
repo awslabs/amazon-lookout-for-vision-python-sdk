@@ -79,7 +79,7 @@ class Image():
         for file in files:
             # ...set the path and read the image in
             path = "{}/{}".format(image_type, file)
-            if not (".jpeg" in path or ".jpg" in path or ".png" in path):
+            if not (".jpeg" in path.lower() or ".jpg" in path.lower() or ".png" in path.lower()):
                 print("The following image is not compliant: {}".format(path))
                 continue
             image = io.imread(path)
@@ -142,7 +142,7 @@ class Image():
         for file in files:
             # ...set path and read image
             path = "{}/{}".format(image_type, file)
-            if not (".jpeg" in path or ".jpg" in path or ".png" in path):
+            if not (".jpeg" in path.lower() or ".jpg" in path.lower() or ".png" in path.lower()):
                 print("The following image is not compliant: {}".format(path))
                 continue
             image = io.imread(path)
@@ -227,6 +227,31 @@ class Image():
         good = response["good"]["compliant"]
         bad = response["bad"]["compliant"]
         return good and bad
+
+    @classmethod
+    def __print_docs(self, dataset, adjust=False, test_split=0.2, new_split=0.2):
+        """Helper to print a statement that is used in many places.
+
+        Args:
+            dataset (str): Either training or validation.
+            adjust (bool): Indicates if the train-test-split was adjusted
+            test_split (float): The percentage to split between train and validation
+            new_split (float): The new percentage to split between train and validation
+
+        Returns:
+            None
+
+        """
+        if not adjust:
+            print("Warning: You don't have enough good images in your {} dataset available for training a model!".format(dataset))
+        else:
+            print("Warning: You do not have enough images for a {}% test split. To comply with the service requirements, the split is adjusted to {}%".format(str(test_split*10), str(new_split*10)))
+        print("""
+            From the documentation:
+            A single dataset project needs at least 20 images labeled as normal and at least 10 images labeled as anomalous.
+            A project with separate training and test datasets, needs a training dataset with at least 10 images labeled as normal. The test dataset needs at least 10 images labeled as normal and at least 10 images labeled as anomalous.
+            We recommend that you add more than the minimum number of labeled images. Unlabeled images aren't used to train your model.
+        """)
 
     @classmethod
     def __is_too_small(self, response):
@@ -362,7 +387,7 @@ class Image():
                     # ...load the image, resize it and save it back
                     # to the new folder
                     img_path = "{}/{}".format(path, file)
-                    if not (".jpeg" in img_path or ".jpg" in img_path or ".png" in img_path):
+                    if not (".jpeg" in img_path.lower() or ".jpg" in img_path.lower() or ".png" in img_path.lower()):
                         print(
                             "The following image is not compliant: {}".format(img_path))
                         continue
@@ -408,53 +433,31 @@ class Image():
             # check if there are more than 5000 images in each "good" and "bad" folder, if so, exit
             check = self.__check_image_number(no_of_files=len(files))
             # shuffle and split the images into training and test set
-            random.shuffle(files)
-            training_set = files[:int(len(files)*(1-test_split))] 
-            validation_set = files[-int(len(files)*test_split):]
             batches = [files]
             if train_and_test:
+                random.shuffle(files)
+                training_set = files[:int(len(files)*(1-test_split))]
+                validation_set = files[-int(len(files)*test_split):]
                 batches = [training_set, validation_set]
-                if "good" in p and len(training_set) < 10:
-                    print("Warning: You don't have enough good images in your training dataset available for training a model!")
-                    print("""
-                        From the documentation:
-                        A single dataset project needs at least 20 images labeled as normal and at least 10 images labeled as anomalous.
-                        A project with separate training and test datasets, needs a training dataset with at least 10 images labeled as normal. The test dataset needs at least 10 images labeled as normal and at least 10 images labeled as anomalous.
-                        We recommend that you add more than the minimum number of labeled images. Unlabeled images aren't used to train your model.
-                    """)
-                if "good" in p and len(validation_set) < 10:
-                    print("Warning: You don't have enough good images in your validation dataset available for training a model!")
-                    print("""
-                        From the documentation:
-                        A single dataset project needs at least 20 images labeled as normal and at least 10 images labeled as anomalous.
-                        A project with separate training and test datasets, needs a training dataset with at least 10 images labeled as normal. The test dataset needs at least 10 images labeled as normal and at least 10 images labeled as anomalous.
-                        We recommend that you add more than the minimum number of labeled images. Unlabeled images aren't used to train your model.
-                    """)
-                if "bad" in p and len(validation_set) < 10:
-                    print("Warning: You don't have enough bad images in your validation dataset available for training a model!")
-                    print("""
-                        From the documentation:
-                        A single dataset project needs at least 20 images labeled as normal and at least 10 images labeled as anomalous.
-                        A project with separate training and test datasets, needs a training dataset with at least 10 images labeled as normal. The test dataset needs at least 10 images labeled as normal and at least 10 images labeled as anomalous.
-                        We recommend that you add more than the minimum number of labeled images. Unlabeled images aren't used to train your model.
-                    """)
+                if "good" in p:
+                    if len(files) >= 20 and (len(training_set) < 10 or len(validation) < 10):
+                        validation_set = files[:10]
+                        training_set = files[10:]
+                        new_split = round(len(validation_set)/len(files), 2)
+                        self.__print_docs(dataset="training", adjust=True,
+                            test_split=test_split, new_split=new_split)
+                    if len(training_set) < 10:
+                        self.__print_docs(dataset="training")
+                    if len(validation_set) < 10:
+                        self.__print_docs(dataset="validation")
+                if "bad" in p:
+                    if len(validation_set) < 10:
+                        self.__print_docs(dataset="validation")
             else:
                 if "good" in p and len(files) < 20:
-                    print("Warning: You don't have enough good images in your training dataset available for training a model!")
-                    print("""
-                        From the documentation:
-                        A single dataset project needs at least 20 images labeled as normal and at least 10 images labeled as anomalous.
-                        A project with separate training and test datasets, needs a training dataset with at least 10 images labeled as normal. The test dataset needs at least 10 images labeled as normal and at least 10 images labeled as anomalous.
-                        We recommend that you add more than the minimum number of labeled images. Unlabeled images aren't used to train your model.
-                    """)
+                    self.__print_docs(dataset="training")
                 if "bad" in p and len(files) < 10:
-                    print("Warning: You don't have enough bad images in your training dataset available for training a model!")
-                    print("""
-                        From the documentation:
-                        A single dataset project needs at least 20 images labeled as normal and at least 10 images labeled as anomalous.
-                        A project with separate training and test datasets, needs a training dataset with at least 10 images labeled as normal. The test dataset needs at least 10 images labeled as normal and at least 10 images labeled as anomalous.
-                        We recommend that you add more than the minimum number of labeled images. Unlabeled images aren't used to train your model.
-                    """)
+                    self.__print_docs(dataset="validation")
             for batch_files in batches:
                 subfolder = "normal"
                 if "bad" in p:
@@ -466,7 +469,7 @@ class Image():
                 batch_upload_input = []
                 for file in batch_files:
                     filename = '{}/{}'.format(p, file)
-                    if not (".jpeg" in file or ".jpg" in file or ".png" in file):
+                    if not (".jpeg" in file.lower() or ".jpg" in file.lower() or ".png" in file.lower()):
                         print("The following file was skipped: {}".format(file))
                         continue
                     input_tuple = (filename, bucket, "{}/{}/{}".format(folder, subfolder, file))
@@ -523,7 +526,7 @@ class Image():
                     if key["Key"][-1] == "/":
                         continue
                     # only consider allowed images
-                    if not (".jpeg" in key["Key"] or ".jpg" in key["Key"] or ".png" in key["Key"]):
+                    if not (".jpeg" in key["Key"].lower() or ".jpg" in key["Key"].lower() or ".png" in key["Key"].lower()):
                         print(
                             "The following file was skipped: {}".format(key["Key"]))
                         continue
