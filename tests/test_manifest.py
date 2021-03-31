@@ -15,6 +15,7 @@
 from lookoutvision import manifest
 
 BUCKET_NAME = "mybucket"
+S3_PATH = "mypath"
 DATASETS = ["training", "validation"]
 
 class DummyFramework(manifest.Manifest):
@@ -87,15 +88,15 @@ class DummyFramework(manifest.Manifest):
 		return success
 
 def test_get_bucket():
-	mft = manifest.Manifest(bucket=BUCKET_NAME, datasets=DATASETS)
+	mft = manifest.Manifest(bucket=BUCKET_NAME, s3_path=S3_PATH, datasets=DATASETS)
 	assert mft.get_bucket() == BUCKET_NAME
 
 def test_get_datasets():
-	mft = manifest.Manifest(bucket=BUCKET_NAME, datasets=DATASETS)
+	mft = manifest.Manifest(bucket=BUCKET_NAME, s3_path=S3_PATH, datasets=DATASETS)
 	assert mft.get_datasets() == DATASETS
 
 def test_push_manifests():
-	mft = DummyFramework(bucket=BUCKET_NAME, datasets=DATASETS)
+	mft = DummyFramework(bucket=BUCKET_NAME, s3_path=S3_PATH, datasets=DATASETS)
 	assert mft.push_manifests() == {
 		"training": {
 			"bucket": "mybucket",
@@ -110,7 +111,7 @@ def test_push_manifests():
 	}
 
 def test_generate_manifests():
-	mft = DummyFramework(bucket=BUCKET_NAME, datasets=DATASETS)
+	mft = DummyFramework(bucket=BUCKET_NAME, s3_path=S3_PATH, datasets=DATASETS)
 	assert mft.generate_manifests() == {
 			"training": {
 				"normal": {

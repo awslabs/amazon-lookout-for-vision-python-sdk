@@ -6,7 +6,7 @@ with open("README.rst", "r", encoding="utf-8") as fh:
 setup(
     name='lookoutvision',
     packages=find_packages(include=['lookoutvision']),
-    version='0.1.0',
+    version='0.1.1',
     description='Python SDK for Amazon Lookout for Vision',
     author='Michael Wallner',
     author_email="wallnm@amazon.com",

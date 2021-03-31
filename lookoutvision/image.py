@@ -400,7 +400,7 @@ class Image():
                 output[path] = "{}{}".format(prefix, path)
         return output
 
-    def upload_from_local(self, bucket, train_and_test=True, test_split=0.2, prefix="",
+    def upload_from_local(self, bucket, s3_path="", train_and_test=True, test_split=0.2, prefix="",
                           content_type="image/jpeg", processes_num=10):
         """This method will help you upload your local images to S3.
         Based on your folders "good" and "bad" - that are mandatory - it will
@@ -408,6 +408,8 @@ class Image():
 
         Args:
             bucket (str): The S3 bucket name
+            s3_path (str): The S3 subfolder path.
+                To be used like: "myfolder/" - DON'T FORGET THE SLASH!
             train_and_test (bool): Have both present train and validation data
                 Note: You can decide here wheter your Amazon Lookout for Vision
                 project will use a train and validation set.
@@ -472,7 +474,7 @@ class Image():
                     if not (".jpeg" in file.lower() or ".jpg" in file.lower() or ".png" in file.lower()):
                         print("The following file was skipped: {}".format(file))
                         continue
-                    input_tuple = (filename, bucket, "{}/{}/{}".format(folder, subfolder, file))
+                    input_tuple = (filename, bucket, "{}{}/{}/{}".format(s3_path, folder, subfolder, file))
                     batch_upload_input.append(input_tuple)
                 
                 pool = ThreadPool(processes=processes_num)
@@ -491,7 +493,7 @@ class Image():
             }
         return response
 
-    def copy_from_s3(self, input_bucket, output_bucket, prefix_good="good", prefix_bad="bad",
+    def copy_from_s3(self, input_bucket, output_bucket, s3_path="", prefix_good="good", prefix_bad="bad",
                      train_and_test=True, test_split=0.2):
         """This method will help you copy images within S3.
         Based on your keys prefix_good and prefix_bad it will
@@ -500,6 +502,8 @@ class Image():
         Args:
             input_bucket (str): The S3 bucket name for input
             output_bucket (str): The S3 bucket name for output
+            s3_path (str): The S3 subfolder path.
+                To be used like: "myfolder/" - DON'T FORGET THE SLASH!
             prefix_good (str): Path in S3 to good images
             prefix_bad (str): Path in S3 to bad images
             train_and_test (bool): Have both present train and validation data
@@ -543,11 +547,9 @@ class Image():
                     if choice == 1 and train_and_test:
                         folder = "validation"
                     # Set S3 object name and copy file:
-                    fname = "{}/{}/{}".format(folder,
-                                              subfolder, key["Key"].split("/")[-1])
+                    fname = "{}{}/{}/{}".format(s3_path, folder, subfolder, key["Key"].split("/")[-1])
                     
                     try:
-                        
                         response = s3.copy({
                             "Bucket": input_bucket,
                             "Key": key["Key"]

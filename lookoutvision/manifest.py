@@ -26,12 +26,13 @@ class Manifest():
 
     Attributes:
     bucket          The name of the S3 bucket.
+    s3_path         The S3 subfolder path. To be used like: "myfolder/" - DON'T FORGET THE SLASH!
     datasets        The datasets used for the manifest (train and/or test)
     s3              The Amazon S3 boto3 client.
 
     """
 
-    def __init__(self, bucket, datasets=["training"]):
+    def __init__(self, bucket, s3_path, datasets=["training"]):
         """Creates a Manifest helper object for Amazon Lookout for Vision.
         It can create a manifest file based on the data you stored on S3
         for your Amazon Lookout for Vision project. It can also push that
@@ -48,6 +49,7 @@ class Manifest():
         """
         super(Manifest, self).__init__()
         self.bucket = bucket
+        self.s3_path = s3_path
         self.datasets = datasets
         self.s3 = boto3.client("s3")
 
@@ -101,7 +103,7 @@ class Manifest():
                 # ...list the objects with the prefix
                 # e.g training/anomaly
                 objects = self.s3.list_objects_v2(
-                    Bucket=self.bucket, Prefix="{}/{}".format(ds, folder))["Contents"]
+                    Bucket=self.bucket, Prefix="{}{}/{}".format(self.s3_path, ds, folder))["Contents"]
                 # Manifest files assume labels to be:
                 # 1 = good image
                 # 0 = bad image
@@ -116,7 +118,7 @@ class Manifest():
                     f = file["Key"].split("/")[-1]
                     # ...set the manifest object as per:
                     manifest_obj = {
-                        "source-ref": "s3://{}/{}/{}/{}".format(self.bucket, ds, folder, f),
+                        "source-ref": "s3://{}/{}{}/{}/{}".format(self.bucket, self.s3_path, ds, folder, f),
                         "auto-label": label,
                         "auto-label-metadata": {
                             "confidence": 1,
@@ -160,12 +162,12 @@ class Manifest():
                     manifest += manifests[ds][key]
                 # Upload the manifest to S3
                 upload = self.s3.put_object(
-                    Bucket=self.bucket, Key="{}.manifest".format(ds), Body=manifest)
+                    Bucket=self.bucket, Key="{}{}.manifest".format(self.s3_path, ds), Body=manifest)
                 # Store location
                 success[ds] = {
                     "bucket": self.bucket,
-                    "key": "{}.manifest".format(ds),
-                    "location": "s3://{}/{}.manifest".format(self.bucket, ds)}
+                    "key": "{}{}.manifest".format(self.s3_path, ds),
+                    "location": "s3://{}/{}{}.manifest".format(self.bucket, self.s3_path, ds)}
         except Exception as e:
             # Log error!
             logging.error(e)
