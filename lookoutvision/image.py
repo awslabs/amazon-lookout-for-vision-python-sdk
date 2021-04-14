@@ -442,7 +442,7 @@ class Image():
                 validation_set = files[-int(len(files)*test_split):]
                 batches = [training_set, validation_set]
                 if "good" in p:
-                    if len(files) >= 20 and (len(training_set) < 10 or len(validation) < 10):
+                    if len(files) >= 20 and (len(training_set) < 10 or len(validation_set) < 10):
                         validation_set = files[:10]
                         training_set = files[10:]
                         new_split = round(len(validation_set)/len(files), 2)
