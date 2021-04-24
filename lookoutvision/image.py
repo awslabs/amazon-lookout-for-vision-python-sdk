@@ -245,7 +245,7 @@ class Image():
         if not adjust:
             print("Warning: You don't have enough good images in your {} dataset available for training a model!".format(dataset))
         else:
-            print("Warning: You do not have enough images for a {}% test split. To comply with the service requirements, the split is adjusted to {}%".format(str(test_split*10), str(new_split*10)))
+            print("Warning: You do not have enough images for a {}% test split. To comply with the service requirements, the split is adjusted to {}%".format(str(test_split*100), str(new_split*100)))
         print("""
             From the documentation:
             A single dataset project needs at least 20 images labeled as normal and at least 10 images labeled as anomalous.
@@ -440,21 +440,17 @@ class Image():
                 random.shuffle(files)
                 training_set = files[:int(len(files)*(1-test_split))]
                 validation_set = files[-int(len(files)*test_split):]
+                if len(files) >= 20 and (len(training_set) < 10 or len(validation_set) < 10):
+                    validation_set = files[:10]
+                    training_set = files[10:]
+                    new_split = round(len(validation_set)/len(files), 2)
+                    self.__print_docs(dataset="training", adjust=True,
+                        test_split=test_split, new_split=new_split)
+                if len(training_set) < 10:
+                    self.__print_docs(dataset="training")
+                if len(validation_set) < 10:
+                    self.__print_docs(dataset="validation")
                 batches = [training_set, validation_set]
-                if "good" in p:
-                    if len(files) >= 20 and (len(training_set) < 10 or len(validation_set) < 10):
-                        validation_set = files[:10]
-                        training_set = files[10:]
-                        new_split = round(len(validation_set)/len(files), 2)
-                        self.__print_docs(dataset="training", adjust=True,
-                            test_split=test_split, new_split=new_split)
-                    if len(training_set) < 10:
-                        self.__print_docs(dataset="training")
-                    if len(validation_set) < 10:
-                        self.__print_docs(dataset="validation")
-                if "bad" in p:
-                    if len(validation_set) < 10:
-                        self.__print_docs(dataset="validation")
             else:
                 if "good" in p and len(files) < 20:
                     self.__print_docs(dataset="training")
