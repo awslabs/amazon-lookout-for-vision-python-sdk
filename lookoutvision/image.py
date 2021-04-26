@@ -214,18 +214,20 @@ class Image():
             Key=fname)
 
     @classmethod
-    def __is_compliant(self, response):
+    def __is_compliant(self, response, normal="good", anomaly="bad"):
         """Helper to return if all images are compliant.
 
         Args:
             response (json): Returned object from __image_size_checker
+            normal (str): The folder name of the good images
+            anomaly (str): The folder name of the bad images
 
         Returns:
             bool: True or False (compliant or not compliant)
 
         """
-        good = response["good"]["compliant"]
-        bad = response["bad"]["compliant"]
+        good = response[normal]["compliant"]
+        bad = response[anomaly]["compliant"]
         return good and bad
 
     @classmethod
@@ -254,11 +256,13 @@ class Image():
         """)
 
     @classmethod
-    def __is_too_small(self, response):
+    def __is_too_small(self, response, normal="good", anomaly="bad"):
         """Helper to return if any image used is too small.
 
         Args:
             response (json): Returned object from __image_size_checker
+            normal (str): The folder name of the good images
+            anomaly (str): The folder name of the bad images
 
         Returns:
             bool: True or False
@@ -266,15 +270,17 @@ class Image():
         """
         compliant = self.__is_compliant(response=response)
         if not compliant:
-            return min(response["good"]["min_size"], response["bad"]["min_size"]) < 64
+            return min(response[normal]["min_size"], response[anomaly]["min_size"]) < 64
         return False
 
     @classmethod
-    def __is_too_large(self, response):
+    def __is_too_large(self, response, normal="good", anomaly="bad"):
         """Helper to return if any image used is too large.
 
         Args:
             response (json): Returned object from __image_size_checker
+            normal (str): The folder name of the good images
+            anomaly (str): The folder name of the bad images
 
         Returns:
             bool: True or False
@@ -282,64 +288,68 @@ class Image():
         """
         compliant = self.__is_compliant(response=response)
         if not compliant:
-            return max(response["good"]["max_size"], response["bad"]["max_size"]) > 64
+            return max(response[normal]["max_size"], response[anomaly]["max_size"]) > 64
         return False
 
-    def check_image_sizes(self, prefix="", verbose=False):
+    def check_image_sizes(self, prefix="", verbose=False, normal="good", anomaly="bad"):
         """Check your image sizes with this function.
 
         Args:
             verbose (bool): Decide to include image metadata in output.
+            normal (str): The folder name of the good images
+            anomaly (str): The folder name of the bad images
 
         Returns:
             json: Metadata on the image and their compliance.
 
         """
-        # If you don't have folders "good" and "bad" this libary
+        # If you don't have folders of normal and anomaly this libary
         # will not work:
         folders = os.listdir()
-        if "{}good".format(prefix) not in folders and "{}bad".format(prefix) not in folders:
+        if "{}{}".format(prefix, normal) not in folders and "{}{}".format(prefix, anomaly) not in folders:
             print(
-                "Error: Methods requires folders good/ and bad/ with images in this location!")
+                "Error: Methods requires folders {}{}/ and {}{}/ with images in this location!".format(prefix, normal, prefix, anomaly))
             return {}
         # For each folder set a response
         response = {}
-        for path in ["{}good".format(prefix), "{}bad".format(prefix)]:
+        for path in ["{}{}".format(prefix, normal), "{}{}".format(prefix, anomaly)]:
             response[path] = self.__image_size_checker(
                 image_type=path, verbose=verbose)
         return response
 
-    def check_image_shapes(self, prefix="", verbose=False):
+    def check_image_shapes(self, prefix="", verbose=False, normal="good", anomaly="bad"):
         """Check your image sahpes with this function.
 
         Args:
             verbose (bool): Decide to include image metadata in output.
+            normal (str): The folder name of the good images
+            anomaly (str): The folder name of the bad images
 
         Returns:
             json: Metadata on the image and their compliance.
 
         """
-        # If you don't have folders "good" and "bad" this libary
+        # If you don't have folders of normal and anomaly this libary
         # will not work:
         folders = os.listdir()
-        if "{}good".format(prefix) not in folders and "{}bad".format(prefix) not in folders:
+        if "{}{}".format(prefix, normal) not in folders and "{}{}".format(prefix, anomaly) not in folders:
             print(
-                "Error: Methods requires folders {}good/ and {}bad/ with images in this location!".format(prefix, prefix))
+                "Error: Methods requires folders {}{}/ and {}{}/ with images in this location!".format(prefix, normal, prefix, anomaly))
             return {}
         # For each folder set a response
         response = {}
-        for path in ["{}good".format(prefix), "{}bad".format(prefix)]:
+        for path in ["{}{}".format(prefix, normal), "{}{}".format(prefix, anomaly)]:
             response[path] = self.__image_shape_checker(
                 image_type=path, verbose=verbose)
-        good = response["{}good".format(prefix)]["min_image_shape"]
-        bad = response["{}bad".format(prefix)]["min_image_shape"]
+        good = response["{}{}".format(prefix, normal)]["min_image_shape"]
+        bad = response["{}{}".format(prefix, anomaly)]["min_image_shape"]
         if max(good[:-1])/min(good[:-1]) < max(bad[:-1])/min(bad[:-1]):
             response["shape_recommendation"] = good
         else:
             response["shape_recommendation"] = bad
         return response
 
-    def rescale(self, prefix="rescaled_", force_rescale=False):
+    def rescale(self, prefix="rescaled_", force_rescale=False, normal="good", anomaly="bad"):
         """This method will rescale all your images to a common size.
         This function will automatically determine if your images comply
         and if they need rescaling. It will only rescale if your images
@@ -349,6 +359,8 @@ class Image():
             prefix (str): The prefix for the new folder with your resized images.
                 Note: if set to "" this function will overwrite your original images.
             force_rescale (bool): force to rescale even for compliant images.
+            normal (str): The folder name of the good images
+            anomaly (str): The folder name of the bad images
 
         Returns:
             json: Object with the new local image paths.
@@ -359,15 +371,15 @@ class Image():
         # good as they are:
         factor = 1
         output = {
-            "{}good".format(prefix): "Ok",
-            "{}bad".format(prefix): "Ok"
+            "{}{}".format(prefix, normal): "Ok",
+            "{}{}".format(prefix, anomaly): "Ok"
         }
-        # If you don't have folders "good" and "bad" this libary
+        # If you don't have folders 'normal' and 'anomaly' this libary
         # will not work:
         folders = os.listdir()
-        if "good" not in folders and "bad" not in folders:
+        if "{}".format(normal) not in folders and "{}".format(anomaly) not in folders:
             print(
-                "Error: Methods requires folders good/ and bad/ with images in this location!")
+                "Error: Methods requires folders {}{}/ and {}{}/ with images in this location!".format(prefix, normal, prefix, anomaly))
             return {}
         shapes = self.check_image_shapes()
         shape_rec = shapes["shape_recommendation"]
@@ -378,7 +390,7 @@ class Image():
             print("No rescaling needed!")
         else:
             # ...take each image and...
-            for path in ["good", "bad"]:
+            for path in ["{}".format(normal), "{}".format(anomaly)]:
                 # ...create a new directory using the prefix
                 os.mkdir("{}{}".format(prefix, path))
                 files = os.listdir(path)
@@ -401,7 +413,7 @@ class Image():
         return output
 
     def upload_from_local(self, bucket, s3_path="", train_and_test=True, test_split=0.2, prefix="",
-                          content_type="image/jpeg", processes_num=10):
+                          content_type="image/jpeg", processes_num=10, normal="good", anomaly="bad"):
         """This method will help you upload your local images to S3.
         Based on your folders "good" and "bad" - that are mandatory - it will
         upload the images to S3 accordingly.
@@ -418,21 +430,23 @@ class Image():
                 If you rescaled your new folders might be named "rescaled_good" and
                 "rescaled_bad"
             content_type (str): The image type. Valid are "image/jpeg" and "image/png"
+            normal (str): The folder name of the good images
+            anomaly (str): The folder name of the bad images
 
         Returns:
             json: Object with the S3 locations of the data.
         """ 
-        # If you don't have folders "good" and "bad" this libary
+        # If you don't have folders 'normal' and 'anomaly' this libary
         # will not work:
         folders = os.listdir()      
-        if "{}good".format(prefix) not in folders and "{}bad".format(prefix) not in folders:
+        if "{}{}".format(prefix, normal) not in folders and "{}{}".format(prefix, anomaly) not in folders:
             print(
-                "Error: Methods requires folders good/ and bad/ with images in this location!")
+                "Error: Methods requires folders {}{}/ and {}{}/ with images in this location!".format(prefix, normal, prefix, anomaly))
             return {}
-        # For both folders "good" and "bad"...
-        for p in ["{}good".format(prefix), "{}bad".format(prefix)]:
+        # For both folders 'normal' and 'anomaly'...
+        for p in ["{}{}".format(prefix, normal), "{}{}".format(prefix, anomaly)]:
             files = os.listdir(path=p)
-            # check if there are more than 5000 images in each "good" and "bad" folder, if so, exit
+            # check if there are more than 5000 images in each 'normal' and 'anomaly' folder, if so, exit
             check = self.__check_image_number(no_of_files=len(files))
             # shuffle and split the images into training and test set
             batches = [files]
@@ -452,13 +466,13 @@ class Image():
                     self.__print_docs(dataset="validation")
                 batches = [training_set, validation_set]
             else:
-                if "good" in p and len(files) < 20:
+                if "{}".format(normal) in p and len(files) < 20:
                     self.__print_docs(dataset="training")
-                if "bad" in p and len(files) < 10:
+                if "{}".format(anomaly) in p and len(files) < 10:
                     self.__print_docs(dataset="validation")
             for batch_files in batches:
                 subfolder = "normal"
-                if "bad" in p:
+                if "{}".format(anomaly) in p:
                     subfolder = "anomaly"
                 folder = "training"
                 if batch_files == validation_set:
