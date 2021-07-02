@@ -1,16 +1,18 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-  
+
 #   Licensed under the Apache License, Version 2.0 (the "License").
 #   You may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
-  
+
 #       http://www.apache.org/licenses/LICENSE-2.0
-  
+
 #   Unless required by applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
 #   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
+
+import pandas as pd
 
 from lookoutvision import lookoutvision
 
@@ -120,10 +122,12 @@ class DummyFramework(lookoutvision.LookoutForVision):
             'Confidence': 1.0
         }
 
-    def batch_predict(self, model_version=None, input_bucket="", input_prefix=None, output_bucket="", output_prefix=None, content_type="image/jpeg"):
+    def batch_predict(self, model_version=None, input_bucket="", input_prefix=None, output_bucket="",
+                      output_prefix=None, content_type="image/jpeg"):
         return {
             'status': 'Success!',
-            'predicted_result': 's3://{}/{}'.format(TARGET_BUCKET_BATCH_PREDICTION, TARGET_BUCKET_PREFIX_BATCH_PREDICTION)
+            'predicted_result': 's3://{}/{}'.format(TARGET_BUCKET_BATCH_PREDICTION,
+                                                    TARGET_BUCKET_PREFIX_BATCH_PREDICTION)
         }
 
     def stop_model(self, model_version=None):
@@ -131,11 +135,32 @@ class DummyFramework(lookoutvision.LookoutForVision):
             "status": "STOPPING_HOSTING"
         }
 
+    def delete_lookoutvision_project(self, project_name: str):
+        return {'Success': True}
+
+    def train_one_fold(self, input_bucket: str, output_bucket: str, s3_path: str, model_prefix: str, i_split: int,
+                       delete_kfold_projects: bool = True):
+        return {
+
+            'model': {
+                'CreationTimestamp': '1970-01-01 00:00:00.0',
+                'ModelVersion': '1',
+                'ModelArn': 'arn:aws:lookoutvision:REGION:123456789:model/{}/{}'.format(PROJECT_NAME, MODEL_VERSION),
+                'Status': 'TRAINING',
+                'StatusMessage': 'The model is being trained.'
+            }
+        }
+
+    def train_k_fold(self):
+        return pd.DataFrame()
+
+
 def test_get_params():
     l4v = DummyFramework(project_name=PROJECT_NAME,
                          model_version=MODEL_VERSION)
     assert l4v.get_params() == {'model_version': '1',
-                          'project_name': 'myproject'}
+                                'project_name': 'myproject'}
+
 
 def test_set_params():
     l4v = DummyFramework(project_name=PROJECT_NAME,
@@ -151,6 +176,7 @@ def test_create_project():
         'project': 'arn:aws:lookoutvision:REGION:123456789:project/myproject'
     }
 
+
 def test_describe_project():
     l4v = DummyFramework(project_name=PROJECT_NAME,
                          model_version=MODEL_VERSION)
@@ -158,6 +184,7 @@ def test_describe_project():
         'status': 'Success!',
         'project': 'arn:aws:lookoutvision:REGION:123456789:project/myproject'
     }
+
 
 def test_create_datasets():
     l4v = DummyFramework(project_name=PROJECT_NAME,
@@ -178,6 +205,7 @@ def test_create_datasets():
         }
     }
 
+
 def test_fit():
     l4v = DummyFramework(project_name=PROJECT_NAME,
                          model_version=MODEL_VERSION)
@@ -190,6 +218,7 @@ def test_fit():
             'StatusMessage': 'The model is being trained.'
         }
     }
+
 
 def test_deploy():
     l4v = DummyFramework(project_name=PROJECT_NAME,
@@ -225,6 +254,7 @@ def test_deploy():
         }
     }
 
+
 def test_predict():
     l4v = DummyFramework(project_name=PROJECT_NAME,
                          model_version=MODEL_VERSION)
@@ -236,13 +266,15 @@ def test_predict():
         'Confidence': 1.0
     }
 
+
 def test_batch_predict():
     l4v = DummyFramework(project_name=PROJECT_NAME,
                          model_version=MODEL_VERSION)
     assert l4v.batch_predict() == {
-            'status': 'Success!',
-            'predicted_result': 's3://mytargetdbucket/prdictedresult/'
-            }
+        'status': 'Success!',
+        'predicted_result': 's3://mytargetdbucket/prdictedresult/'
+    }
+
 
 def test_stop_model(model_version=None):
     l4v = DummyFramework(project_name=PROJECT_NAME,
@@ -250,3 +282,32 @@ def test_stop_model(model_version=None):
     assert l4v.stop_model() == {
         "status": "STOPPING_HOSTING"
     }
+
+
+def test_delete_lookoutvision_project():
+    l4v = DummyFramework(project_name=PROJECT_NAME,
+                         model_version=MODEL_VERSION)
+    assert l4v.delete_lookoutvision_project(PROJECT_NAME) == {
+        "Success": True
+    }
+
+
+# def test_train_one_fold():
+#     l4v = DummyFramework(project_name=PROJECT_NAME,
+#                          model_version=MODEL_VERSION)
+#     assert l4v.train_one_fold(input_bucket=BUCKET_NAME, output_bucket=BUCKET_NAME, s3_path='', model_prefix='',
+#                               i_split=0) == {
+#                'model': {
+#                    'CreationTimestamp': '1970-01-01 00:00:00.0',
+#                    'ModelVersion': '1',
+#                    'ModelArn': 'arn:aws:lookoutvision:REGION:123456789:model/myproject/1',
+#                    'Status': 'TRAINING',
+#                    'StatusMessage': 'The model is being trained.'
+#                }
+#            }
+
+
+# def test_train_k_fold():
+#     l4v = DummyFramework(project_name=PROJECT_NAME,
+#                          model_version=MODEL_VERSION)
+#     assert type(l4v.train_k_fold()) == type(pd.DataFrame())

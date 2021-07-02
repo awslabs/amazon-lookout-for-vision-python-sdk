@@ -1,11 +1,11 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-  
+
 #   Licensed under the Apache License, Version 2.0 (the "License").
 #   You may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
-  
+
 #       http://www.apache.org/licenses/LICENSE-2.0
-  
+
 #   Unless required by applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
 #   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -13,13 +13,13 @@
 #   limitations under the License.
 
 import os
-import numpy as np
-import boto3
-from skimage import io, img_as_ubyte
-from skimage.transform import rescale, resize
-import math
 import random
 from multiprocessing.pool import ThreadPool
+
+import boto3
+import numpy as np
+from skimage import io, img_as_ubyte
+from skimage.transform import resize
 
 
 class Image():
@@ -160,8 +160,8 @@ class Image():
                     # downscale images to):
                     minvalue = min(shape[:-1])
                     maxvalue = max(shape[:-1])
-                    if shape[0] > shape[1] and maxvalue/minvalue < value:
-                        value = maxvalue/minvalue
+                    if shape[0] > shape[1] and maxvalue / minvalue < value:
+                        value = maxvalue / minvalue
                         shape = image.shape
             # Log shape in output
             image_info[path] = image.shape
@@ -170,7 +170,8 @@ class Image():
         # Populate response
         response = {
             "no_of_images": no_of_images,
-            "compliant": cnt,
+            "compliant": no_of_images == cnt,
+            "compliant_images": cnt,
             "status": status,
             "min_image_shape": shape
         }
@@ -245,9 +246,13 @@ class Image():
 
         """
         if not adjust:
-            print("Warning: You don't have enough good images in your {} dataset available for training a model!".format(dataset))
+            print(
+                "Warning: You don't have enough good images in your {} dataset available for training a model!".format(
+                    dataset))
         else:
-            print("Warning: You do not have enough images for a {}% test split. To comply with the service requirements, the split is adjusted to {}%".format(str(test_split*100), str(new_split*100)))
+            print(
+                "Warning: You do not have enough images for a {}% test split. To comply with the service requirements, the split is adjusted to {}%".format(
+                    str(test_split * 100), str(new_split * 100)))
         print("""
             From the documentation:
             A single dataset project needs at least 20 images labeled as normal and at least 10 images labeled as anomalous.
@@ -268,7 +273,7 @@ class Image():
             bool: True or False
 
         """
-        compliant = self.__is_compliant(response=response)
+        compliant = self.__is_compliant(response=response, normal=normal, anomaly=anomaly)
         if not compliant:
             return min(response[normal]["min_size"], response[anomaly]["min_size"]) < 64
         return False
@@ -286,12 +291,12 @@ class Image():
             bool: True or False
 
         """
-        compliant = self.__is_compliant(response=response)
+        compliant = self.__is_compliant(response=response, normal=normal, anomaly=anomaly)
         if not compliant:
             return max(response[normal]["max_size"], response[anomaly]["max_size"]) > 64
         return False
 
-    def check_image_sizes(self, prefix="", verbose=False, normal="good", anomaly="bad"):
+    def check_image_sizes(self, prefix="", verbose=False, normal="good", anomaly="bad") -> object:
         """Check your image sizes with this function.
 
         Args:
@@ -308,7 +313,8 @@ class Image():
         folders = os.listdir()
         if "{}{}".format(prefix, normal) not in folders and "{}{}".format(prefix, anomaly) not in folders:
             print(
-                "Error: Methods requires folders {}{}/ and {}{}/ with images in this location!".format(prefix, normal, prefix, anomaly))
+                "Error: Methods requires folders {}{}/ and {}{}/ with images in this location!".format(prefix, normal,
+                                                                                                       prefix, anomaly))
             return {}
         # For each folder set a response
         response = {}
@@ -334,7 +340,8 @@ class Image():
         folders = os.listdir()
         if "{}{}".format(prefix, normal) not in folders and "{}{}".format(prefix, anomaly) not in folders:
             print(
-                "Error: Methods requires folders {}{}/ and {}{}/ with images in this location!".format(prefix, normal, prefix, anomaly))
+                "Error: Methods requires folders {}{}/ and {}{}/ with images in this location!".format(prefix, normal,
+                                                                                                       prefix, anomaly))
             return {}
         # For each folder set a response
         response = {}
@@ -343,13 +350,14 @@ class Image():
                 image_type=path, verbose=verbose)
         good = response["{}{}".format(prefix, normal)]["min_image_shape"]
         bad = response["{}{}".format(prefix, anomaly)]["min_image_shape"]
-        if max(good[:-1])/min(good[:-1]) < max(bad[:-1])/min(bad[:-1]):
+        if max(good[:-1]) / min(good[:-1]) < max(bad[:-1]) / min(bad[:-1]):
             response["shape_recommendation"] = good
         else:
             response["shape_recommendation"] = bad
         return response
 
-    def rescale(self, prefix="rescaled_", force_rescale=False, normal="good", anomaly="bad"):
+    def rescale(self, prefix: object = "rescaled_", force_rescale: object = False, normal: object = "good",
+                anomaly: object = "bad") -> object:
         """This method will rescale all your images to a common size.
         This function will automatically determine if your images comply
         and if they need rescaling. It will only rescale if your images
@@ -379,13 +387,15 @@ class Image():
         folders = os.listdir()
         if "{}".format(normal) not in folders and "{}".format(anomaly) not in folders:
             print(
-                "Error: Methods requires folders {}{}/ and {}{}/ with images in this location!".format(prefix, normal, prefix, anomaly))
+                "Error: Methods requires folders {}{}/ and {}{}/ with images in this location!".format(prefix, normal,
+                                                                                                       prefix, anomaly))
             return {}
-        shapes = self.check_image_shapes()
+        shapes = self.check_image_shapes(prefix=prefix, normal=normal, anomaly=anomaly)
         shape_rec = shapes["shape_recommendation"]
         if max(shape_rec) > 4096 or min(shape_rec[:-1]) < 64:
-            print("Warning: Your images shapes imply that rescaling will lead to a lot of information loss! Please check if you can collect better quality images!")
-        compliant = self.__is_compliant(response=shapes)
+            print(
+                "Warning: Your images shapes imply that rescaling will lead to a lot of information loss! Please check if you can collect better quality images!")
+        compliant = self.__is_compliant(response=shapes, normal=normal, anomaly=anomaly)
         if compliant and not force_rescale:
             print("No rescaling needed!")
         else:
@@ -413,7 +423,7 @@ class Image():
         return output
 
     def upload_from_local(self, bucket, s3_path="", train_and_test=True, test_split=0.2, prefix="",
-                          content_type="image/jpeg", processes_num=10, normal="good", anomaly="bad"):
+                          content_type="image/jpeg", processes_num=10, normal="good", anomaly="bad", seed=0):
         """This method will help you upload your local images to S3.
         Based on your folders "good" and "bad" - that are mandatory - it will
         upload the images to S3 accordingly.
@@ -432,16 +442,19 @@ class Image():
             content_type (str): The image type. Valid are "image/jpeg" and "image/png"
             normal (str): The folder name of the good images
             anomaly (str): The folder name of the bad images
+            seed (int): Seed for random shuffling
 
         Returns:
             json: Object with the S3 locations of the data.
-        """ 
+        """
         # If you don't have folders 'normal' and 'anomaly' this libary
         # will not work:
-        folders = os.listdir()      
+        random.seed(seed)
+        folders = os.listdir()
         if "{}{}".format(prefix, normal) not in folders and "{}{}".format(prefix, anomaly) not in folders:
             print(
-                "Error: Methods requires folders {}{}/ and {}{}/ with images in this location!".format(prefix, normal, prefix, anomaly))
+                "Error: Methods requires folders {}{}/ and {}{}/ with images in this location!".format(prefix, normal,
+                                                                                                       prefix, anomaly))
             return {}
         # For both folders 'normal' and 'anomaly'...
         for p in ["{}{}".format(prefix, normal), "{}{}".format(prefix, anomaly)]:
@@ -452,14 +465,14 @@ class Image():
             batches = [files]
             if train_and_test:
                 random.shuffle(files)
-                training_set = files[:int(len(files)*(1-test_split))]
-                validation_set = files[-int(len(files)*test_split):]
+                training_set = files[:int(len(files) * (1 - test_split))]
+                validation_set = files[-int(len(files) * test_split):]
                 if len(files) >= 20 and (len(training_set) < 10 or len(validation_set) < 10):
                     validation_set = files[:10]
                     training_set = files[10:]
-                    new_split = round(len(validation_set)/len(files), 2)
+                    new_split = round(len(validation_set) / len(files), 2)
                     self.__print_docs(dataset="training", adjust=True,
-                        test_split=test_split, new_split=new_split)
+                                      test_split=test_split, new_split=new_split)
                 if len(training_set) < 10:
                     self.__print_docs(dataset="training")
                 if len(validation_set) < 10:
@@ -471,11 +484,14 @@ class Image():
                 if "{}".format(anomaly) in p and len(files) < 10:
                     self.__print_docs(dataset="validation")
             for batch_files in batches:
-                subfolder = "normal"
-                if "{}".format(anomaly) in p:
+                if normal == os.path.basename(os.path.abspath(p)):
+                    subfolder = "normal"
+                elif anomaly == os.path.basename(os.path.abspath(p)):
                     subfolder = "anomaly"
+                else:
+                    raise ValueError(f"Path {p} does not have as last folder {normal} or {anomaly}")
                 folder = "training"
-                if batch_files == validation_set:
+                if train_and_test and batch_files == validation_set:
                     folder = "validation"
                 # generate the input for batch uploading to s3 bucket
                 batch_upload_input = []
@@ -486,21 +502,69 @@ class Image():
                         continue
                     input_tuple = (filename, bucket, "{}{}/{}/{}".format(s3_path, folder, subfolder, file))
                     batch_upload_input.append(input_tuple)
-                
+
                 pool = ThreadPool(processes=processes_num)
                 pool.starmap(self.__upload_s3, batch_upload_input)
         # Set metadata in response:
         response = {
             "train": {
-                "normal": "s3://{}/training/normal/".format(bucket),
-                "anomaly": "s3://{}/training/anomaly/".format(bucket)
+                "normal": f"s3://{bucket}/{s3_path}/training/normal/",
+                "anomaly": f"s3://{bucket}/{s3_path}/training/anomaly/"
             }
         }
         if train_and_test:
             response["test"] = {
-                "normal": "s3://{}/validation/normal/".format(bucket),
-                "anomaly": "s3://{}/validation/anomaly/".format(bucket)
+                "normal": f"s3://{bucket}/{s3_path}/validation/normal/",
+                "anomaly": f"s3://{bucket}/{s3_path}/validation/anomaly/"
             }
+        return response
+
+    def upload_from_local2(self, bucket: str, s3_path: str, training_normal: list, training_anomaly: list,
+                           validation_normal: list, validation_anomaly: list, processes_num=10):
+        """This method will help you upload your local images to S3.
+        Specific lists of images can be passed to be used for training and validation data. In particular the images
+        need to be split into training normal, training anomaly, validation normal and validation anomaly data.
+
+        Args:
+            bucket (str): The S3 bucket name
+            s3_path (str): The S3 subfolder path.
+            To be used like: "myfolder/" - DON'T FORGET THE SLASH!
+            training_normal (list): paths to images to be used for training with label normal
+            training_anomaly (list): paths to images to be used for training with label anomaly
+            validation_anomaly (list): paths to images to be used for validation with label normal
+            validation_anomaly (list): paths to images to be used for validation with label anomaly
+            processes_num (int): number of processes to run in parallel when uploading images
+
+        Returns:
+            json: Object with the S3 locations of the data.
+        """
+        if s3_path.endswith('/'):
+            s3_path = s3_path[:-1]
+        batch_upload_input = []
+        data_list = [(training_normal, 'training', 'normal'),
+                     (training_anomaly, 'training', 'anomaly'),
+                     (validation_normal, 'validation', 'normal'),
+                     (validation_anomaly, 'validation', 'anomaly')]
+        for filename_list, train_val, normal_anomaly in data_list:
+            for filename in filename_list:
+                file = os.path.split(filename)[-1]
+                input_tuple = (filename, bucket, f"{s3_path}/{train_val}/{normal_anomaly}/{file}")
+                batch_upload_input.append(input_tuple)
+
+        pool = ThreadPool(processes=processes_num)
+        pool.starmap(self.__upload_s3, batch_upload_input)
+
+        response = {
+            "train": {
+                "normal": f"s3://{bucket}/{s3_path}/training/normal/",
+                "anomaly": f"s3://{bucket}/{s3_path}/training/anomaly/"
+            },
+            "test": {
+                "normal": f"s3://{bucket}/{s3_path}/validation/normal/",
+                "anomaly": f"s3://{bucket}/{s3_path}/validation/anomaly/"
+            }
+        }
+
         return response
 
     def copy_from_s3(self, input_bucket, output_bucket, s3_path="", prefix_good="good", prefix_bad="bad",
@@ -540,7 +604,8 @@ class Image():
                     if key["Key"][-1] == "/":
                         continue
                     # only consider allowed images
-                    if not (".jpeg" in key["Key"].lower() or ".jpg" in key["Key"].lower() or ".png" in key["Key"].lower()):
+                    if not (".jpeg" in key["Key"].lower() or ".jpg" in key["Key"].lower() or ".png" in key[
+                        "Key"].lower()):
                         print(
                             "The following file was skipped: {}".format(key["Key"]))
                         continue
@@ -552,13 +617,13 @@ class Image():
                         subfolder = "anomaly"
                     # Make a train-test-split:
                     choice = np.random.choice(a=[0, 1], size=1, replace=True, p=[
-                                              1-test_split, test_split])[0]
+                        1 - test_split, test_split])[0]
                     folder = "training"
                     if choice == 1 and train_and_test:
                         folder = "validation"
                     # Set S3 object name and copy file:
                     fname = "{}{}/{}/{}".format(s3_path, folder, subfolder, key["Key"].split("/")[-1])
-                    
+
                     try:
                         response = s3.copy({
                             "Bucket": input_bucket,
@@ -583,3 +648,107 @@ class Image():
                 "anomaly": "s3://{}/validation/anomaly/".format(output_bucket)
             }
         return response
+
+    def kfold_split(self, n_splits: int, prefix: str = '', normal: str = 'good', anomaly: str = 'bad', seed: int = 0):
+        """
+        Splits the images in the normal and anomaly directory into k folds. k is defined by n_splits.
+        The function returns 4 dictionaries: normal images for training, anomaly images for training,
+        normal images for validation and anomaly images for validation.
+        The data is split into training and validation according to k-fold-cross validation.
+
+        Arguments:
+            n_splits (int): number of splits for the k-fold cross validation n_split is equal to k in that regard
+            prefix (str): The prefix for the folder with your normal and anomaly images.
+            normal (str): The folder name of the normal images
+            anomaly (str): The folder name of the anomaly images
+            seed (int): seed when generating the random splits
+
+        Returns:
+            training_normal (dict): dict with key of the i-th split and values with normal images used for training in the i-th split
+            training_anomaly (dict): dict with key of the i-th split and values with anomaly images used for training in the i-th split
+            validation_normal (dict): dict with key of the i-th split and values with normal images used for validation in the i-th split
+            validation_anomaly (dict): dict with key of the i-th split and values with anomaly images used for validation in the i-th split
+        """
+        # If you don't have folders of normal and anomaly this library
+        # will not work:
+        print(n_splits, prefix, normal, anomaly, seed)
+        folders = os.listdir()
+        if "{}{}".format(prefix, normal) not in folders and "{}{}".format(prefix, anomaly) not in folders:
+            print(
+                "Error: Methods requires folders {}{}/ and {}{}/ with images in this location!".format(prefix, normal,
+                                                                                                       prefix, anomaly))
+            return {}
+
+        # get the normal and anomaly images into each one list
+        normal_img = [f for f in os.listdir(normal) if f.endswith('.jpg') or f.endswith('.png')]
+        anomaly_img = [f for f in os.listdir(anomaly) if f.endswith('.jpg') or f.endswith('.png')]
+        # shuffle the normal and anomaly images
+        rng = np.random.default_rng(seed=seed)
+        normal_img = rng.permutation(normal_img)
+        anomaly_img = rng.permutation(anomaly_img)
+        # split the normal and anomaly images into n_splits equal parts
+        normal_img = np.array_split(normal_img, n_splits)
+        anomaly_img = np.array_split(anomaly_img, n_splits)
+
+        validation_normal, validation_anomaly, training_normal, training_anomaly = {}, {}, {}, {}
+        # initialize the return parameters
+        for i in range(n_splits):
+            validation_normal[i] = []
+            validation_anomaly[i] = []
+            training_normal[i] = []
+            training_anomaly[i] = []
+
+        # copy the image files into separate folders where the number of folders is n_splits
+        for split_i, (normal_dataset_i, anomaly_dataset_i) in enumerate(zip(normal_img, anomaly_img)):
+            # generate validation data for fold split_i
+            for image_file in normal_dataset_i:
+                validation_normal[split_i].append(f'{normal}/{image_file}')
+            for image_file in anomaly_dataset_i:
+                validation_anomaly[split_i].append(f'{anomaly}/{image_file}')
+            # generate training data for fold split_i
+            datasets_idx = list(range(n_splits))
+            datasets_idx.remove(split_i)
+            training_data_normal = np.array(normal_img, dtype=object)[datasets_idx]
+            training_data_anomaly = np.array(anomaly_img, dtype=object)[datasets_idx]
+            for image_file in np.concatenate(training_data_normal).ravel():
+                training_normal[split_i].append(f'{normal}/{image_file}')
+            for image_file in np.concatenate(training_data_anomaly).ravel():
+                training_anomaly[split_i].append(f'{anomaly}/{image_file}')
+        return training_normal, training_anomaly, validation_normal, validation_anomaly
+
+    def kfold_upload(self, bucket: str, s3_path: str, project_name: str, training_normal: list, training_anomaly: list,
+                     validation_normal: list, validation_anomaly: list):
+        """
+        Upload the k fold cross validation datasets obtained from function kfold_split to S3.
+
+        Arguments:
+            bucket (str): The S3 bucket name
+            s3_path (str): S3 path to upload the k different splits to
+            project_name (str): Name of the Amazon Lookout for Vision project
+            training_normal (dict): dict with key of the i-th split and values with normal images used for training in the i-th split
+            training_anomaly (dict): dict with key of the i-th split and values with anomaly images used for training in the i-th split
+            validation_normal (dict): dict with key of the i-th split and values with normal images used for validation in the i-th split
+            validation_anomaly (dict): dict with key of the i-th split and values with anomaly images used for validation in the i-th split
+
+        Returns:
+            response (list): list of objects for every upload. Each object contains the S3 locations of the data.
+        """
+        if len({len(training_normal), len(training_anomaly), len(validation_normal), len(validation_anomaly)}) > 1:
+            raise ValueError(f"Length of training_normal, training_anomaly, validation_normal, validation_anomaly "
+                             f"must be equal. "
+                             f"Lengths are: training_normal={len(training_normal)}, "
+                             f"training_anomaly={len(training_anomaly)}, "
+                             f"validation_normal={len(validation_normal)}, "
+                             f"validation_anomaly={len(validation_anomaly)}")
+        responses = []
+        s3_path = s3_path + '/' if not s3_path.endswith('/') else s3_path
+        for i in range(len(training_normal)):
+            response = self.upload_from_local2(bucket=bucket,
+                                               s3_path=s3_path + f'{project_name}_{i}/',
+                                               training_normal=training_normal[i],
+                                               training_anomaly=training_anomaly[i],
+                                               validation_normal=validation_normal[i],
+                                               validation_anomaly=validation_anomaly[i])
+            responses.append(response)
+
+        return responses

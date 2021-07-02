@@ -31,6 +31,9 @@ class DummyFramework(metrics.Metrics):
 	def compare_models(self, figsize=(8, 6)):
 		return None
 
+	def k_fold_model_summary(self):
+		return pd.DataFrame()
+
 def test_describe_model():
 	mrc = DummyFramework(project_name=PROJECT_NAME)
 	assert type(mrc.describe_model(model_version="3")) == type(pd.DataFrame())
@@ -42,3 +45,7 @@ def test_describe_models():
 def test_compare_models():
 	mrc = DummyFramework(project_name=PROJECT_NAME)
 	assert mrc.compare_models() == None
+
+def test_k_fold_model_summary():
+	mrc = DummyFramework(project_name=PROJECT_NAME)
+	assert type(mrc.k_fold_model_summary()) == type(pd.DataFrame())

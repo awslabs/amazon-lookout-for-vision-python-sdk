@@ -1,16 +1,18 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-  
+
 #   Licensed under the Apache License, Version 2.0 (the "License").
 #   You may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
-  
+
 #       http://www.apache.org/licenses/LICENSE-2.0
-  
+
 #   Unless required by applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
 #   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
+
+import json
 
 from lookoutvision import image
 
@@ -94,17 +96,45 @@ class DummyFramework(image.Image):
         too_small = self.__is_too_small(response=response)
         return {'good': 'Ok', 'bad': 'Ok'}
 
-    def upload_from_local(self, bucket, train_and_test=True, test_split=0.2, prefix="", content_type="image/jpeg"):
+    def upload_from_local(self, bucket, s3_path='', train_and_test=True, test_split=0.2, prefix="",
+                          content_type="image/jpeg"):
         return {
             'train_data': {
-                'normal': 's3://{}/training/normal/'.format(bucket),
-                'anomaly': 's3://{}/training/anomaly/'.format(bucket)
+                'normal': 's3://{}/{}/training/normal/'.format(bucket, s3_path),
+                'anomaly': 's3://{}/{}/training/anomaly/'.format(bucket, s3_path)
             },
             'test_data': {
-                'normal': 's3://{}/validation/normal/'.format(bucket),
-                'anomaly': 's3://{}/validation/anomaly/'.format(bucket)
+                'normal': 's3://{}/{}/validation/normal/'.format(bucket, s3_path),
+                'anomaly': 's3://{}/{}/validation/anomaly/'.format(bucket, s3_path)
             }
         }
+
+    def upload_from_local2(self, bucket: str, s3_path: str, training_normal: list, training_anomaly: list,
+                           validation_normal: list, validation_anomaly: list, processes_num=10):
+        return {
+            'train_data': {
+                'normal': 's3://{}/{}/training/normal/'.format(bucket, s3_path),
+                'anomaly': 's3://{}/{}/training/anomaly/'.format(bucket, s3_path)
+            },
+            'test_data': {
+                'normal': 's3://{}/{}/validation/normal/'.format(bucket, s3_path),
+                'anomaly': 's3://{}/{}/validation/anomaly/'.format(bucket, s3_path)
+            }
+        }
+
+    def kfold_upload(self, bucket: str, s3_path: str, project_name: str, training_normal: list, training_anomaly: list,
+                     validation_normal: list, validation_anomaly: list):
+        s3_path = s3_path + f'{project_name}_0/'
+        return [{
+            'train_data': {
+                'normal': 's3://{}/{}/training/normal/'.format(bucket, s3_path),
+                'anomaly': 's3://{}/{}/training/anomaly/'.format(bucket, s3_path)
+            },
+            'test_data': {
+                'normal': 's3://{}/{}/validation/normal/'.format(bucket, s3_path),
+                'anomaly': 's3://{}/{}/validation/anomaly/'.format(bucket, s3_path)
+            }
+        }]
 
     def copy_from_s3(self, input_bucket, output_bucket, prefix_good="good", prefix_bad="bad",
                      train_and_test=True, test_split=0.2):
@@ -164,16 +194,33 @@ def test_check_image_sizes():
 
 def test_upload_from_local():
     l4v = DummyFramework()
+    s3_path = ''
     assert l4v.upload_from_local(bucket=INPUT_BUCKET_NAME) == {
         'train_data': {
-            'normal': 's3://mybucket/training/normal/',
-            'anomaly': 's3://mybucket/training/anomaly/'
+            'normal': f's3://{INPUT_BUCKET_NAME}/{s3_path}/training/normal/',
+            'anomaly': f's3://{INPUT_BUCKET_NAME}/{s3_path}/training/anomaly/'
         },
         'test_data': {
-            'normal': 's3://mybucket/validation/normal/',
-            'anomaly': 's3://mybucket/validation/anomaly/'
+            'normal': f's3://{INPUT_BUCKET_NAME}/{s3_path}/validation/normal/',
+            'anomaly': f's3://{INPUT_BUCKET_NAME}/{s3_path}/validation/anomaly/'
         }
     }
+
+
+def test_upload_from_local2():
+    l4v = DummyFramework()
+    s3_path = 'test'
+    assert l4v.upload_from_local2(bucket=INPUT_BUCKET_NAME, s3_path=s3_path, training_normal=[], training_anomaly=[],
+                                  validation_normal=[], validation_anomaly=[]) == {
+               'train_data': {
+                   'normal': f's3://{INPUT_BUCKET_NAME}/{s3_path}/training/normal/',
+                   'anomaly': f's3://{INPUT_BUCKET_NAME}/{s3_path}/training/anomaly/'
+               },
+               'test_data': {
+                   'normal': f's3://{INPUT_BUCKET_NAME}/{s3_path}/validation/normal/',
+                   'anomaly': f's3://{INPUT_BUCKET_NAME}/{s3_path}/validation/anomaly/'
+               }
+           }
 
 
 def test_copy_from_s3():
@@ -190,3 +237,41 @@ def test_copy_from_s3():
             'anomaly': 's3://newbucket/validation/anomaly/'
         }
     }
+
+
+# def test_kfold_split():
+#     n_splits = 3
+#     normal = 'noncloud'
+#     anomaly = 'cloud'
+#     img = image.Image()
+#     training_normal, training_anomaly, validation_normal, validation_anomaly = img.kfold_split(n_splits=n_splits,
+#                                                                                                prefix='',
+#                                                                                                normal=normal,
+#                                                                                                anomaly=anomaly,
+#                                                                                                seed=0)
+#     with open('./tests/kfold_split_result.json') as json_file:
+#         kfold_split_result = json.load(json_file)
+
+#     for dataset_name, dataset in zip(['training_normal', 'training_anomaly', 'validation_normal', 'validation_anomaly'],
+#                                      [training_normal, training_anomaly, validation_normal, validation_anomaly]):
+#         kfold_split_result[dataset_name] = {int(k): v for k, v in kfold_split_result[dataset_name].items()}
+#         assert kfold_split_result[dataset_name] == dataset
+
+
+# def test_kfold_upload():
+#     l4v = DummyFramework()
+#     s3_path = 'test/'
+#     project_name = 'test'
+#     s3_path_result = s3_path + f'{project_name}_{0}/'
+#     assert l4v.kfold_upload(bucket=INPUT_BUCKET_NAME, s3_path=s3_path, project_name=project_name, training_normal=[],
+#                             training_anomaly=[],
+#                             validation_normal=[], validation_anomaly=[]) == [{
+#         'train_data': {
+#             'normal': f's3://{INPUT_BUCKET_NAME}/{s3_path_result}/training/normal/',
+#             'anomaly': f's3://{INPUT_BUCKET_NAME}/{s3_path_result}/training/anomaly/'
+#         },
+#         'test_data': {
+#             'normal': f's3://{INPUT_BUCKET_NAME}/{s3_path_result}/validation/normal/',
+#             'anomaly': f's3://{INPUT_BUCKET_NAME}/{s3_path_result}/validation/anomaly/'
+#         }
+#     }]
