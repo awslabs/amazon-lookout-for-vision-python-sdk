@@ -28,7 +28,7 @@ from lookoutvision.manifest import Manifest
 from lookoutvision.metrics import Metrics
 
 
-class LookoutForVision():
+class LookoutForVision:
     """LookoutForVision class to build, train and deploy.
 
     This class helps to build, train and deploy a Amazon Lookout for Vision
@@ -74,10 +74,9 @@ class LookoutForVision():
             list: all class parameters
 
         """
-        init = getattr(self.__init__, 'deprecated_original', self.__init__)
+        init = getattr(self.__init__, "deprecated_original", self.__init__)
         init_signature = inspect.signature(init)
-        parameters = [p for p in init_signature.parameters.values()
-                      if p.name != 'self' and p.kind != p.VAR_KEYWORD]
+        parameters = [p for p in init_signature.parameters.values() if p.name != "self" and p.kind != p.VAR_KEYWORD]
         return sorted([p.name for p in parameters])
 
     def describe_project(self):
@@ -94,13 +93,13 @@ class LookoutForVision():
         project = {}
         # First try to describe the project given by the name:
         try:
-            project = self.lv.describe_project(
-                ProjectName=self.project_name)["ProjectDescription"]["ProjectArn"]
-            print('Project already exists with arn: ' + project)
+            project = self.lv.describe_project(ProjectName=self.project_name)["ProjectDescription"]["ProjectArn"]
+            print("Project already exists with arn: " + project)
         except Exception as e:
-            if 'ResourceNotFoundException' in str(e):
+            if "ResourceNotFoundException" in str(e):
                 print(
-                    f"Project {self.project_name} does not exist yet...use the create_project() method to set up your first project")
+                    f"Project {self.project_name} does not exist yet...use the create_project() method to set up your first project"
+                )
             else:
                 raise Exception
         return project
@@ -118,15 +117,11 @@ class LookoutForVision():
         project = {}
         # First try to create a new project:
         try:
-            project = self.lv.create_project(
-                ProjectName=self.project_name
-            )["ProjectMetadata"]["ProjectArn"]
+            project = self.lv.create_project(ProjectName=self.project_name)["ProjectMetadata"]["ProjectArn"]
             print(f"Creating the project: {self.project_name}")
         except Exception as e:
-            if 'ConflictException' in str(e):
-                project = self.lv.describe_project(
-                    ProjectName=self.project_name
-                )["ProjectDescription"]["ProjectArn"]
+            if "ConflictException" in str(e):
+                project = self.lv.describe_project(ProjectName=self.project_name)["ProjectDescription"]["ProjectArn"]
             else:
                 raise Exception
         return project
@@ -144,9 +139,9 @@ class LookoutForVision():
         output = dict()
         for key in self._get_param_names():
             value = getattr(self, key)
-            if deep and hasattr(value, 'get_params'):
+            if deep and hasattr(value, "get_params"):
                 deep_items = value.get_params().items()
-                output.update((key + '__' + i, val) for i, val in deep_items)
+                output.update((key + "__" + i, val) for i, val in deep_items)
             output[key] = value
         return output
 
@@ -166,12 +161,13 @@ class LookoutForVision():
 
         nested = defaultdict(dict)
         for key, value in params.items():
-            key, delim, sub = key.partition('__')
+            key, delim, sub = key.partition("__")
             if key not in valid:
-                raise ValueError('Invalid parameter %s for class %s. '
-                                 'Check the list of available parameters '
-                                 'with `cls.get_params().keys()`.' %
-                                 (key, self))
+                raise ValueError(
+                    "Invalid parameter %s for class %s. "
+                    "Check the list of available parameters "
+                    "with `cls.get_params().keys()`." % (key, self)
+                )
             if delim:
                 nested[key][sub] = value
             else:
@@ -210,10 +206,7 @@ class LookoutForVision():
         for item in p["ProjectDescription"]["Datasets"]:
             dtype = item["DatasetType"]
             try:
-                dataset = self.lv.delete_dataset(
-                    ProjectName=self.project_name,
-                    DatasetType=dtype
-                )
+                self.lv.delete_dataset(ProjectName=self.project_name, DatasetType=dtype)
             except Exception as e:
                 print("Error in dataset deletion with exception: {}".format(e))
                 print("Please check CloudWatch logs for troubleshooting!")
@@ -245,28 +238,23 @@ class LookoutForVision():
         # For each dataset used...
         for key in dataset_type:
             # ...create a dataset
-            d_type = "train" if (
-                    key == "training" or key == "train") else "test"
+            d_type = "train" if (key == "training" or key == "train") else "test"
             try:
                 dataset = self.lv.create_dataset(
                     ProjectName=self.project_name,
                     DatasetType=d_type,
                     DatasetSource={
-                        'GroundTruthManifest': {
-                            'S3Object': {
-                                'Bucket': dataset_type[key]["bucket"],
-                                'Key': dataset_type[key]["key"]
-                            }
+                        "GroundTruthManifest": {
+                            "S3Object": {"Bucket": dataset_type[key]["bucket"], "Key": dataset_type[key]["key"]}
                         }
-                    }
+                    },
                 )["DatasetMetadata"]
                 # Log output
                 datasets[key] = dataset
             except Exception as e:
-                if 'ConflictException' in str(e):
+                if "ConflictException" in str(e):
                     print("Dataset already existed in the project")
-                    print(
-                        "If the dataset already exists try updating it with: update_datasets")
+                    print("If the dataset already exists try updating it with: update_datasets")
                 else:
                     print("Error in create_datasets with exception: {}".format(e))
                     raise Exception
@@ -274,22 +262,21 @@ class LookoutForVision():
         # Notify user when creation is done:
         print("Creating dataset(s):", end=" ")
         if wait:
-            stati = ['CREATE_IN_PROGRESS']
-            while (np.array(stati) == 'CREATE_IN_PROGRESS').any():
+            stati = ["CREATE_IN_PROGRESS"]
+            while (np.array(stati) == "CREATE_IN_PROGRESS").any():
                 stati = []
                 for key in dataset_type:
-                    d_type = "train" if (
-                            key == "training" or key == "train") else "test"
-                    stat = self.lv.describe_dataset(
-                        ProjectName=self.project_name,
-                        DatasetType=d_type
-                    )["DatasetDescription"]
-                    stati.append(stat['Status'])
-                    datasets[key]['Status'] = stat['Status']
-                    datasets[key]['StatusMessage'] = stat['StatusMessage']
-                    if stat['Status'] == 'CREATE_FAILED':
+                    d_type = "train" if (key == "training" or key == "train") else "test"
+                    stat = self.lv.describe_dataset(ProjectName=self.project_name, DatasetType=d_type)[
+                        "DatasetDescription"
+                    ]
+                    stati.append(stat["Status"])
+                    datasets[key]["Status"] = stat["Status"]
+                    datasets[key]["StatusMessage"] = stat["StatusMessage"]
+                    if stat["Status"] == "CREATE_FAILED":
                         warnings.warn(
-                            "Failed to create dataset {} with status message: {}.".format(key, stat['StatusMessage']))
+                            "Failed to create dataset {} with status message: {}.".format(key, stat["StatusMessage"])
+                        )
                 print("-", end="")
                 time.sleep(5)
             print("!")
@@ -313,18 +300,16 @@ class LookoutForVision():
         """
         ready_to_go = True
         test_dataset = {"Status": "No test dataset used!"}
-        train_dataset = self.lv.describe_dataset(
-            ProjectName=self.project_name,
-            DatasetType="train"
-        )["DatasetDescription"]
+        train_dataset = self.lv.describe_dataset(ProjectName=self.project_name, DatasetType="train")[
+            "DatasetDescription"
+        ]
         normal_no_images_train = train_dataset["ImageStats"]["Normal"]
         anomaly_no_images_train = train_dataset["ImageStats"]["Anomaly"]
         try:
             if train_and_test:
-                test_dataset = self.lv.describe_dataset(
-                    ProjectName=self.project_name,
-                    DatasetType="test"
-                )["DatasetDescription"]
+                test_dataset = self.lv.describe_dataset(ProjectName=self.project_name, DatasetType="test")[
+                    "DatasetDescription"
+                ]
                 normal_no_images_test = test_dataset["ImageStats"]["Normal"]
                 anomaly_no_images_test = test_dataset["ImageStats"]["Anomaly"]
                 if normal_no_images_train < 10 and normal_no_images_test < 10 and anomaly_no_images_test < 10:
@@ -333,41 +318,40 @@ class LookoutForVision():
                 if normal_no_images_train < 20 and anomaly_no_images_train < 10:
                     ready_to_go = False
         except Exception as e:
-            if 'ResourceNotFoundException' in str(e):
+            if "ResourceNotFoundException" in str(e):
                 print(
-                    "There is no Test Dataset, hence model will be trained with Training Dataset only and can not be validated with Test Dataset ")
-
+                    "There is no Test Dataset, hence model will be trained with Training Dataset only and can not be validated with Test Dataset"
+                )
         if ready_to_go:
             try:
                 model = self.lv.create_model(
                     ProjectName=self.project_name,
                     OutputConfig={
-                        'S3Location': {
-                            'Bucket': output_bucket,
-                            'Prefix': model_prefix if model_prefix is not None else ""
+                        "S3Location": {
+                            "Bucket": output_bucket,
+                            "Prefix": model_prefix if model_prefix is not None else "",
                         }
-                    })["ModelMetadata"]
-                # except Exception as e:
-                #     if 'ServiceQuotaExceededException' in str(e):
-                #         print("You've reached the limit (2) for concurrent model trainings. Try again after at least one model has finished training. You can also request a limit increase. ")
+                    },
+                )["ModelMetadata"]
                 if wait:
                     print("Model training started:", end=" ")
                     version = model["ModelVersion"]
                     status = model["Status"]
                     while status not in ["TRAINED", "TRAINING_FAILED"]:
-                        update = self.lv.describe_model(
-                            ProjectName=self.project_name,
-                            ModelVersion=version
-                        )["ModelDescription"]
-                    status = update["Status"]
-                    print("-", end="")
-                    time.sleep(60)
+                        update = self.lv.describe_model(ProjectName=self.project_name, ModelVersion=version)[
+                            "ModelDescription"
+                        ]
+                        status = update["Status"]
+                        print("-", end="")
+                        time.sleep(60)
                     print("!")
                 else:
-                    print("""Model is being created. Training will take a while.\n
+                    print(
+                        """Model is being created. Training will take a while.\n
                          Please check your Management Console on progress.\n
                          You can continue with deployment once the model is trained.\n
-                      """)
+                      """
+                    )
 
                 # Return success
                 return {
@@ -375,23 +359,26 @@ class LookoutForVision():
                     "project": self.project_name,
                     "train_datasets": train_dataset,
                     "test_datasets": test_dataset,
-                    "model": model
+                    "model": model,
                 }
             except Exception as e:
-                if 'ServiceQuotaExceededException' in str(e):
+                if "ServiceQuotaExceededException" in str(e):
                     print(
-                        "You've reached the limit (2) for concurrent model trainings. Try again after at least one model has finished training. You can also request a limit increase. ")
+                        "You've reached the limit (2) for concurrent model trainings. Try again after at least one model has finished training. You can also request a limit increase. "
+                    )
 
         else:
-            print("""Number of images is not sufficient, at least 20 normal and 10 anomaly\n
+            print(
+                """Number of images is not sufficient, at least 20 normal and 10 anomaly\n
                      imgages are required for training images
-                  """)
+                  """
+            )
             return {
                 "status": "Failure!",
                 "project": self.project_name,
                 "train_datasets": train_dataset,
                 "test_datasets": test_dataset,
-                "model": None
+                "model": None,
             }
 
     def deploy(self, min_inf_units=1, model_version=None, wait=True):
@@ -408,22 +395,23 @@ class LookoutForVision():
         """
         # Check the current status of the model
         current_status = self.lv.describe_model(
-            ProjectName=self.project_name,
-            ModelVersion=self.model_version if model_version is None else model_version
-        )['ModelDescription']['Status']
-        # If model status is TRAINED , then only start the model. 
+            ProjectName=self.project_name, ModelVersion=self.model_version if model_version is None else model_version
+        )["ModelDescription"]["Status"]
+        # If model status is TRAINED , then only start the model.
         # otherwise print the message with actual status that it can not be started
-        if (current_status != 'TRAINED'):
+        if current_status != "TRAINED":
             print(
-                'current model with version {} is in the status {}, hence it can not be started/hosted. The model needs to be in TRAINED status to be started/hosted'.format(
-                    self.model_version if model_version is None else model_version, current_status))
+                "current model with version {} is in the status {}, hence it can not be started/hosted. The model needs to be in TRAINED status to be started/hosted".format(
+                    self.model_version if model_version is None else model_version, current_status
+                )
+            )
         else:
             # Start the model either using the internal model version
-            # or use the one supplied to this method:    
+            # or use the one supplied to this method:
             status = self.lv.start_model(
                 ProjectName=self.project_name,
                 ModelVersion=self.model_version if model_version is None else model_version,
-                MinInferenceUnits=min_inf_units
+                MinInferenceUnits=min_inf_units,
             )["Status"]
             # Wait until model is trained:
             print("Model will be hosted now")
@@ -431,7 +419,7 @@ class LookoutForVision():
                 while status not in ["HOSTED", "HOSTING_FAILED"]:
                     status = self.lv.describe_model(
                         ProjectName=self.project_name,
-                        ModelVersion=self.model_version if model_version is None else model_version
+                        ModelVersion=self.model_version if model_version is None else model_version,
                     )["ModelDescription"]["Status"]
                     print("-", end="")
                     time.sleep(60)
@@ -442,12 +430,11 @@ class LookoutForVision():
                 "status": status,
                 "model": self.lv.describe_model(
                     ProjectName=self.project_name,
-                    ModelVersion=self.model_version if model_version is None else model_version
-                )["ModelDescription"]
+                    ModelVersion=self.model_version if model_version is None else model_version,
+                )["ModelDescription"],
             }
 
-    def predict(self, model_version=None, local_file="",
-                bucket="", key="", content_type="image/jpeg"):
+    def predict(self, model_version=None, local_file="", bucket="", key="", content_type="image/jpeg"):
         """Predict using your Amazon Lookout for Vision model.
         You can either predict from S3 object or local images.
 
@@ -465,11 +452,11 @@ class LookoutForVision():
         # If no paths are set return warning:
         if local_file == "" and bucket == "" and key == "":
             print("Warning: either local_file OR bucket & key need to be present!")
-            return {'Source': {'Type': 'warning'}, 'IsAnomalous': None, 'Confidence': -1.0}
+            return {"Source": {"Type": "warning"}, "IsAnomalous": None, "Confidence": -1.0}
         # If paths for local file AND S3 bucket are set return another warning:
         if local_file != "" and bucket != "" and key != "":
             print("Warning: either local_file OR bucket & key need to be present!")
-            return {'Source': {'Type': 'warning'}, 'IsAnomalous': None, 'Confidence': -1.0}
+            return {"Source": {"Type": "warning"}, "IsAnomalous": None, "Confidence": -1.0}
         # If method is used properly then...
         obj = None
         if local_file != "":
@@ -478,30 +465,28 @@ class LookoutForVision():
                 with open(local_file, "rb") as image:
                     f = image.read()
                     obj = bytearray(f)
-            except IsADirectoryError as e:
+            except IsADirectoryError:
                 print("Warning: you specified a directory, instead of a single file path")
-                print("Maybe you would like to try \'_batch_predict_local\' or \'batch_predict_s3\' method!")
+                print("Maybe you would like to try '_batch_predict_local' or 'batch_predict_s3' method!")
                 return
         elif bucket != "" and key != "":
             # ...or a byte object by pulling from S3
-            obj = boto3.client("s3").get_object(
-                Bucket=bucket,
-                Key=key)["Body"].read()
+            obj = boto3.client("s3").get_object(Bucket=bucket, Key=key)["Body"].read()
         else:
             # If file not found:
             print("Warning: No file found!")
-            return {'Source': {'Type': 'warning'}, 'IsAnomalous': None, 'Confidence': -1.0}
+            return {"Source": {"Type": "warning"}, "IsAnomalous": None, "Confidence": -1.0}
         # Predict using your model:
         result = self.lv.detect_anomalies(
             ProjectName=self.project_name,
             ModelVersion=self.model_version if model_version is None else model_version,
             Body=obj,
-            ContentType=content_type
+            ContentType=content_type,
         )["DetectAnomalyResult"]
         return result
 
     def _batch_predict_local(self, local_path, model_version=None, content_type="image/jpeg"):
-        """Predict for all the images using your Amazon Lookout for Vision model 
+        """Predict for all the images using your Amazon Lookout for Vision model
         from S3 objects.
 
         Args:
@@ -516,7 +501,7 @@ class LookoutForVision():
         predictions = []
         files = os.listdir(local_path)
         for file in files:
-            filename = '{}/{}'.format(local_path, file)
+            filename = "{}/{}".format(local_path, file)
             # ...set obj to bytearray using local image...
             with open(filename, "rb") as image:
                 f = image.read()
@@ -527,17 +512,25 @@ class LookoutForVision():
                         ProjectName=self.project_name,
                         ModelVersion=self.model_version if model_version is None else model_version,
                         Body=obj,
-                        ContentType=content_type
+                        ContentType=content_type,
                     )["DetectAnomalyResult"]
                     predictions.append(result)
                 except Exception as e:
                     print("Warning: prediction failed for file: {}".format(filename))
                     print("with error message: {}".format(e))
-        return {'status': 'Success!', 'predicted_result': predictions}
+        return {"status": "Success!", "predicted_result": predictions}
 
-    def batch_predict(self, model_version=None, local_path=None, input_bucket="", input_prefix=None,
-                      output_bucket="", output_prefix=None, content_type="image/jpeg"):
-        """Predict for all the images using your Amazon Lookout for Vision model 
+    def batch_predict(
+        self,
+        model_version=None,
+        local_path=None,
+        input_bucket="",
+        input_prefix=None,
+        output_bucket="",
+        output_prefix=None,
+        content_type="image/jpeg",
+    ):
+        """Predict for all the images using your Amazon Lookout for Vision model
         from S3 objects.
 
         Args:
@@ -554,71 +547,72 @@ class LookoutForVision():
 
         """
         if local_path is not None:
-            return self._batch_predict_local(local_path=local_path,
-                                             model_version=model_version, content_type=content_type)
+            return self._batch_predict_local(
+                local_path=local_path, model_version=model_version, content_type=content_type
+            )
             # If no input bucket is set return warning:
         if input_bucket == "":
             print("Warning: S3 bucket need to be present for input images!")
-            return {'status': 'Error!', 'predicted_result': None}
+            return {"status": "Error!", "predicted_result": None}
         # If no output bucket is set return warning:
         if output_bucket == "":
             print("Warning: S3 bucket need to be present to load prediction result!")
-            return {'status': 'Error!', 'predicted_result': None}
+            return {"status": "Error!", "predicted_result": None}
         obj = None
         if input_bucket != "":
 
             success = {}
-            kwargs = {'Bucket': input_bucket}
-            if (input_prefix != None):
+            kwargs = {"Bucket": input_bucket}
+            if input_prefix is not None:
                 if isinstance(input_prefix, str):
-                    kwargs['Prefix'] = input_prefix
+                    kwargs["Prefix"] = input_prefix
                 else:
-                    kwargs['Prefix'] = str(input_prefix)
-            paginator = self.s3.get_paginator('list_objects_v2')
+                    kwargs["Prefix"] = str(input_prefix)
+            paginator = self.s3.get_paginator("list_objects_v2")
             pages = paginator.paginate(**kwargs)
 
             # Try...
             try:
 
                 for page in pages:
-                    for obj in page['Contents']:
+                    for obj in page["Contents"]:
 
-                        key = obj['Key']
+                        key = obj["Key"]
                         if key[-1] == "/":
                             continue
 
-                        body = self.s3.get_object(Bucket=input_bucket, Key=key)[
-                            "Body"].read()
-                        file_name = key.split('/')[-1]
+                        body = self.s3.get_object(Bucket=input_bucket, Key=key)["Body"].read()
+                        file_name = key.split("/")[-1]
                         # Predict using your model:
                         result = self.lv.detect_anomalies(
                             ProjectName=self.project_name,
                             ModelVersion=self.model_version if model_version is None else model_version,
                             Body=body,
-                            ContentType=content_type)["DetectAnomalyResult"]
+                            ContentType=content_type,
+                        )["DetectAnomalyResult"]
                         # Upload the manifest to S3
-                        upload = self.s3.put_object(Bucket=output_bucket, Key=output_prefix + "{}.json".format(
-                            file_name), Body=json.dumps(result), ServerSideEncryption='AES256')
-                        success = {"output_bucket": output_bucket,
-                                   "prdected_file_key": output_prefix + "{}.json".format(file_name)
-
-                                   }
-                        print('Predicted output is uploaded to s3 :' +
-                              json.dumps(success))
+                        self.s3.put_object(
+                            Bucket=output_bucket,
+                            Key=output_prefix + "{}.json".format(file_name),
+                            Body=json.dumps(result),
+                            ServerSideEncryption="AES256",
+                        )
+                        success = {
+                            "output_bucket": output_bucket,
+                            "prdected_file_key": output_prefix + "{}.json".format(file_name),
+                        }
+                        print("Predicted output is uploaded to s3 :" + json.dumps(success))
 
             except Exception as e:
                 logging.error(e)
-                print('Key object corresponding to error :' + key)
+                print("Key object corresponding to error :" + key)
 
-            return {
-                'status': 'Success!',
-                'predicted_result': "s3://{}/{}".format(output_bucket, output_prefix)
-            }
+            return {"status": "Success!", "predicted_result": "s3://{}/{}".format(output_bucket, output_prefix)}
 
         else:
             # If file not found:
             print("Warning: No file found!")
-            return {'status': 'Error!', 'predicted_result': None}
+            return {"status": "Error!", "predicted_result": None}
 
     def stop_model(self, model_version=None, wait=True):
         """Stop deployed model.
@@ -634,30 +628,34 @@ class LookoutForVision():
         try:
             # Stop the model
             ModelVersion = self.model_version if model_version is None else model_version
-            print('Stopping model version ' + ModelVersion +
-                  ' for project ' + self.project_name)
-            response = self.lv.stop_model(ProjectName=self.project_name,
-                                          ModelVersion=ModelVersion)
+            print("Stopping model version " + ModelVersion + " for project " + self.project_name)
+            response = self.lv.stop_model(ProjectName=self.project_name, ModelVersion=ModelVersion)
             status = response["Status"]
             print("Model will be stopped now")
             if wait:
                 while status != "TRAINED":
-                    status = self.lv.describe_model(
-                        ProjectName=self.project_name,
-                        ModelVersion=ModelVersion
-                    )["ModelDescription"]["Status"]
+                    status = self.lv.describe_model(ProjectName=self.project_name, ModelVersion=ModelVersion)[
+                        "ModelDescription"
+                    ]["Status"]
                     print("-", end="")
                     time.sleep(5)
                 print("!")
                 print("Your model is now stopped!")
-            print('Status: ' + response['Status'])
+            print("Status: " + response["Status"])
         except Exception as e:
             response["Error"] = e
             print("Something went wrong: ", e)
         return response
 
-    def train_one_fold(self, input_bucket: str, output_bucket: str, s3_path: str, model_prefix: str, i_split: int,
-                       delete_kfold_projects: bool = True):
+    def train_one_fold(
+        self,
+        input_bucket: str,
+        output_bucket: str,
+        s3_path: str,
+        model_prefix: str,
+        i_split: int,
+        delete_kfold_projects: bool = True,
+    ):
         """
         Train one of k folds by creating for each fold a separate project with it's i-th fold dataset.
 
@@ -673,36 +671,38 @@ class LookoutForVision():
             response (dict): the response of the model fit call
 
         """
-        s3_path = s3_path + '/' if not s3_path.endswith('/') else s3_path
+        s3_path = s3_path + "/" if not s3_path.endswith("/") else s3_path
         mft = Manifest(
-            bucket=input_bucket,
-            s3_path=f"{s3_path}{self.project_name}_{i_split}/",
-            datasets=["training", "validation"])
+            bucket=input_bucket, s3_path=f"{s3_path}{self.project_name}_{i_split}/", datasets=["training", "validation"]
+        )
         mft_resp = mft.push_manifests()
 
-        l4v = LookoutForVision(project_name=f'{self.project_name}_{i_split}')
+        l4v = LookoutForVision(project_name=f"{self.project_name}_{i_split}")
 
         # If project does not exist: create it
-        p = l4v.create_project()
+        l4v.create_project()
 
         # based on the manifest files in S3 create your Lookout for Vision datasets:
         l4v.create_datasets(mft_resp, wait=True)
 
         try:
             # train the model
-            response = l4v.fit(
-                output_bucket=output_bucket,
-                model_prefix=model_prefix,
-                wait=True)
+            response = l4v.fit(output_bucket=output_bucket, model_prefix=model_prefix, wait=True)
         finally:
             if delete_kfold_projects:
-                self.delete_lookoutvision_project(f'{self.project_name}_{i_split}')
+                self.delete_lookoutvision_project(f"{self.project_name}_{i_split}")
 
         return response
 
-    def train_k_fold(self, input_bucket: str, output_bucket: str, s3_path: str, n_splits: int,
-                     parallel_training: bool = True,
-                     delete_kfold_projects: bool = True):
+    def train_k_fold(
+        self,
+        input_bucket: str,
+        output_bucket: str,
+        s3_path: str,
+        n_splits: int,
+        parallel_training: bool = True,
+        delete_kfold_projects: bool = True,
+    ):
         """
         Train k folds by creating for each fold a separate project and returning the evaluation results
 
@@ -717,22 +717,25 @@ class LookoutForVision():
         Returns:
             kfold_summary (pd.DataFrame): the summary of the evaluation results of all the k models
         """
-        model_prefix = 'k_fold_'
+        model_prefix = "k_fold_"
         if not parallel_training:
             responses = []
             for i_split in range(n_splits):
-                response = self.train_one_fold(input_bucket=input_bucket,
-                                               output_bucket=output_bucket,
-                                               s3_path=s3_path,
-                                               model_prefix=model_prefix,
-                                               i_split=i_split,
-                                               delete_kfold_projects=delete_kfold_projects)
+                response = self.train_one_fold(
+                    input_bucket=input_bucket,
+                    output_bucket=output_bucket,
+                    s3_path=s3_path,
+                    model_prefix=model_prefix,
+                    i_split=i_split,
+                    delete_kfold_projects=delete_kfold_projects,
+                )
                 responses.append(response)
         else:
             parallel_loop_input = []
             for i_split in range(n_splits):
                 parallel_loop_input.append(
-                    (input_bucket, output_bucket, s3_path, model_prefix, i_split, delete_kfold_projects))
+                    (input_bucket, output_bucket, s3_path, model_prefix, i_split, delete_kfold_projects)
+                )
             try:
                 pool = ThreadPool(processes=2)
                 pool.starmap(self.train_one_fold, parallel_loop_input)
@@ -759,20 +762,26 @@ class LookoutForVision():
         response = {}
         try:
             print(f"Deleting project {project_name}.")
-            for dataset_type in ['train', 'test']:
-                if len(self.lv.list_dataset_entries(ProjectName=project_name, DatasetType=dataset_type)[
-                           'DatasetEntries']) > 0:
+            for dataset_type in ["train", "test"]:
+                if (
+                    len(
+                        self.lv.list_dataset_entries(ProjectName=project_name, DatasetType=dataset_type)[
+                            "DatasetEntries"
+                        ]
+                    )
+                    > 0
+                ):
                     self.lv.delete_dataset(ProjectName=project_name, DatasetType=dataset_type)
-            if len(self.lv.list_models(ProjectName=project_name)['Models']) > 0:
-                self.lv.delete_model(ProjectName=project_name, ModelVersion='1')
-            while len(self.lv.list_models(ProjectName=project_name)['Models']) > 0:
+            if len(self.lv.list_models(ProjectName=project_name)["Models"]) > 0:
+                self.lv.delete_model(ProjectName=project_name, ModelVersion="1")
+            while len(self.lv.list_models(ProjectName=project_name)["Models"]) > 0:
                 print("-", end="")
                 time.sleep(5)
             self.lv.delete_project(ProjectName=project_name)
             print("!")
-            response['Success'] = True
+            response["Success"] = True
         except Exception as e:
             response["Error"] = e
-            response['success'] = False
+            response["success"] = False
             print("Something went wrong: ", e)
         return response
